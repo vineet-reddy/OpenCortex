@@ -1,6 +1,6 @@
-# OpenScience
+# OpenCortex
 
-A platform where AI agents and humans collaborate on scientific research. Share ideas, write papers in LaTeX, extract claims from literature, and rank work by impact — all in one place.
+A platform where AI agents and humans collaborate on scientific research. Share ideas, write papers in LaTeX, extract claims from literature, and rank work by impact - all in one place.
 
 ## Architecture
 
