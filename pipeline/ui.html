@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentScience Leaderboard UI</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #1d2433;
+      --muted: #5e6880;
+      --border: #d8dfeb;
+      --accent: #1254d8;
+      --accent-2: #0d3fa5;
+      --ok: #0b8a4a;
+      --err: #be2435;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
+    }
+    .container {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+      display: grid;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    h2 { margin: 0 0 12px; font-size: 18px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .row input, .row select, .row button {
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 0 10px;
+      font-size: 14px;
+    }
+    .row button {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      cursor: pointer;
+    }
+    .row button:hover { background: var(--accent-2); }
+    .row button.secondary {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .status { margin-top: 8px; font-size: 13px; }
+    .ok { color: var(--ok); }
+    .err { color: var(--err); white-space: pre-wrap; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    .pill {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    pre {
+      margin: 0;
+      background: #f7f9fd;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      overflow: auto;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="panel">
+      <h1>AgentScience Test UI</h1>
+      <div class="muted">Upload paper files, add citation counts, and compute impact leaderboard.</div>
+    </div>
+
+    <div class="panel">
+      <h2>1. Upload And Extract</h2>
+      <div class="row">
+        <input id="pdf" type="file" accept=".pdf,application/pdf" />
+        <input id="tex" type="file" accept=".tex,text/plain" />
+        <input id="titleOverride" type="text" placeholder="Optional title override" style="min-width: 220px;" />
+        <button id="extractBtn">Extract Paper</button>
+      </div>
+      <div class="status" id="extractStatus"></div>
+    </div>
+
+    <div class="panel">
+      <h2>2. Papers</h2>
+      <div class="muted">Uploaded papers will appear here.</div>
+      <table id="papersTable">
+        <thead>
+          <tr>
+            <th>Paper</th>
+            <th>OpenAlex</th>
+            <th>Novelty</th>
+            <th>Evidence</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>3. Compute Leaderboard</h2>
+      <div class="row">
+        <select id="citationPolicy">
+          <option value="max">max citation policy</option>
+          <option value="mean">mean citation policy</option>
+        </select>
+        <button id="rankBtn">Run Leaderboard</button>
+      </div>
+      <div class="status" id="rankStatus"></div>
+      <table id="leaderboardTable" style="margin-top:10px;">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Paper</th>
+            <th>Impact</th>
+            <th>PageRank</th>
+            <th>Novelty</th>
+            <th>Evidence</th>
+            <th>Resolved Citations</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Raw Last Response</h2>
+      <pre id="rawOut">No response yet.</pre>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      papers: [],
+      edges: [],
+      lastResponse: null
+    };
+
+    const byId = (id) => document.getElementById(id);
+
+    const renderPapers = () => {
+      const body = byId("papersTable").querySelector("tbody");
+      body.innerHTML = "";
+      for (const paper of state.papers) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><div><strong>${escapeHtml(paper.title || paper.paper_id)}</strong></div><div class="muted">${paper.paper_id}</div></td>
+          <td>${paper.citations?.openalex ?? 0}</td>
+          <td>${fmt(paper.novelty_score)}</td>
+          <td>${fmt(paper.evidence_score)}</td>
+        `;
+        body.appendChild(tr);
+      }
+    };
+
+    const renderLeaderboard = (items) => {
+      const body = byId("leaderboardTable").querySelector("tbody");
+      body.innerHTML = "";
+      items.forEach((item, idx) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td>${escapeHtml(item.title || item.paper_id)}</td>
+          <td>${fmt(item.impact_score)}</td>
+          <td>${fmt(item.pagerank_score)}</td>
+          <td>${fmt(item.novelty_score)}</td>
+          <td>${fmt(item.evidence_score)}</td>
+          <td>${item.citations?.resolved ?? 0}</td>
+        `;
+        body.appendChild(tr);
+      });
+    };
+
+    const setStatus = (id, text, cls) => {
+      const el = byId(id);
+      el.textContent = text;
+      el.className = `status ${cls || ""}`.trim();
+    };
+
+    const setRaw = (obj) => {
+      state.lastResponse = obj;
+      byId("rawOut").textContent = JSON.stringify(obj, null, 2);
+    };
+
+    const fmt = (v) => typeof v === "number" ? v.toFixed(4) : String(v ?? "");
+    const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[m]));
+
+    byId("extractBtn").addEventListener("click", async () => {
+      const pdf = byId("pdf").files[0];
+      const tex = byId("tex").files[0];
+      const titleOverride = byId("titleOverride").value.trim();
+      if (!pdf) {
+        setStatus("extractStatus", "Choose a PDF first.", "err");
+        return;
+      }
+      const fd = new FormData();
+      fd.append("pdf", pdf);
+      if (tex) fd.append("tex", tex);
+      setStatus("extractStatus", "Extracting...", "");
+      try {
+        const res = await fetch("/extract", { method: "POST", body: fd });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || "Extraction failed");
+        setRaw(json);
+        const paper = {
+          paper_id: json.paper_id,
+          title: titleOverride || json.metadata?.title || pdf.name,
+          doi: json.metadata?.doi || null,
+          novelty_score: Number(json.leaderboard_fields?.novelty_score ?? 0),
+          evidence_score: Number(json.leaderboard_fields?.evidence_score ?? 0),
+          citations: {
+            openalex: Number(json.citations?.openalex ?? 0),
+            semantic_scholar: 0,
+            scholar_csv: 0
+          }
+        };
+        state.papers.push(paper);
+        renderPapers();
+        setStatus("extractStatus", "Paper added to session.", "ok");
+      } catch (err) {
+        setStatus("extractStatus", err.message || String(err), "err");
+      }
+    });
+
+    byId("rankBtn").addEventListener("click", async () => {
+      if (!state.papers.length) {
+        setStatus("rankStatus", "Add at least one paper.", "err");
+        return;
+      }
+      setStatus("rankStatus", "Ranking...", "");
+      const payload = {
+        papers: state.papers,
+        edges: [],
+        citation_policy: byId("citationPolicy").value
+      };
+      try {
+        const res = await fetch("/leaderboard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || "Leaderboard failed");
+        setRaw(json);
+        renderLeaderboard(json.items || []);
+        setStatus("rankStatus", `Ranked ${json.count || 0} papers.`, "ok");
+      } catch (err) {
+        setStatus("rankStatus", err.message || String(err), "err");
+      }
+    });
+  </script>
+</body>
+</html>

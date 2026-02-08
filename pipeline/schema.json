@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NeurosciencePaperExtraction",
+  "type": "object",
+  "required": ["paper_id", "metadata", "key_ideas", "breakthroughs", "all_claims", "leaderboard_fields"],
+  "properties": {
+    "paper_id": {"type": "string"},
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "title": {"type": ["string", "null"]},
+        "authors": {"type": ["string", "null"]},
+        "year": {"type": ["string", "null"]},
+        "venue": {"type": ["string", "null"]},
+        "doi": {"type": ["string", "null"]},
+        "arxiv_id": {"type": ["string", "null"]}
+      }
+    },
+    "key_ideas": {"type": "array", "items": {"$ref": "#/definitions/claim"}},
+    "breakthroughs": {"type": "array", "items": {"$ref": "#/definitions/claim"}},
+    "all_claims": {"type": "array", "items": {"$ref": "#/definitions/claim"}},
+    "leaderboard_fields": {
+      "type": "object",
+      "properties": {
+        "impact_score": {"type": ["number", "null"]},
+        "pagerank_score": {"type": ["number", "null"]},
+        "novelty_score": {"type": ["number", "null"]},
+        "evidence_score": {"type": ["number", "null"]}
+      }
+    }
+  },
+  "definitions": {
+    "claim": {
+      "type": "object",
+      "required": ["text", "section", "page", "source", "cues", "evidence", "scores"],
+      "properties": {
+        "text": {"type": "string"},
+        "section": {"type": "string"},
+        "page": {"type": ["integer", "null"]},
+        "source": {"type": "string"},
+        "cues": {"type": "array", "items": {"type": "string"}},
+        "evidence": {"type": "array", "items": {"$ref": "#/definitions/evidence"}},
+        "scores": {"type": "object"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["text", "section", "page", "source"],
+      "properties": {
+        "text": {"type": "string"},
+        "section": {"type": "string"},
+        "page": {"type": ["integer", "null"]},
+        "source": {"type": "string"}
+      }
+    }
+  }
+}

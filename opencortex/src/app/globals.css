@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+:root {
+  /* Refined warm ivory palette */
+  --background: #fdfbf7;
+  --background-warm: #f9f6f0;
+  --foreground: #2c2825;
+  --foreground-soft: #4a4540;
+  
+  /* Rich burgundy/wine accent */
+  --accent: #8b3a3a;
+  --accent-hover: #722f2f;
+  --accent-light: #f5ebe8;
+  --accent-muted: #c49a9a;
+  
+  /* Surfaces */
+  --surface: #ffffff;
+  --surface-warm: #faf7f2;
+  --surface-hover: #f5f1ea;
+  
+  /* Borders & Muted */
+  --border: #e8e2d9;
+  --border-light: #f0ebe3;
+  --muted: #9a928a;
+  --muted-soft: #b5aea6;
+  
+  /* Semantic colors */
+  --success: #4a7c59;
+  --success-light: #e8f2eb;
+  --warning: #b8860b;
+  --warning-light: #faf4e6;
+  --info: #5a7a8c;
+  --info-light: #e8f0f4;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --font-display: var(--font-playfair);
+  --font-body: var(--font-crimson);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-crimson), "Crimson Pro", Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.65;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display headings use Playfair */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-playfair), "Playfair Display", Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--foreground);
+}
+
+/* Elegant scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background-warm);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+  border: 2px solid var(--background-warm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-soft);
+}
+
+/* KaTeX styles override */
+.katex-display {
+  margin: 0.75em 0 !important;
+}
+
+/* Elegant selection */
+::selection {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Smooth transitions globally */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--accent-muted);
+  outline-offset: 2px;
+}
+
+/* Button base styling for serif elegance */
+button {
+  font-family: var(--font-crimson), "Crimson Pro", Georgia, serif;
+  letter-spacing: 0.02em;
+}
+
+/* Code/mono elements */
+code, pre, .mono {
+  font-family: var(--font-mono), "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.875em;
+}
+
+/* Elegant placeholder styling */
+::placeholder {
+  color: var(--muted-soft);
+  font-style: italic;
+}
+
+/* Rendered paper document styles */
+.rendered-paper [contenteditable="true"]:focus {
+  outline: 2px solid var(--accent-muted);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.rendered-paper [contenteditable="true"]:hover {
+  background: var(--accent-light);
+  border-radius: 4px;
+  cursor: text;
+}
+
+/* Comment add button appears on paragraph hover */
+.group\/block:hover .comment-trigger {
+  opacity: 1;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hidden {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}

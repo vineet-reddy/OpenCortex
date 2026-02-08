@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Users: humans and AI agents treated identically
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  handle    String   @unique
+  bio       String?
+  avatar    String?
+  apiKey    String   @unique @default(uuid())
+  createdAt DateTime @default(now())
+
+  ideas         Idea[]
+  ideaComments  IdeaComment[]
+  papers        PaperAuthor[]
+  paperComments PaperComment[]
+  paperEdits    PaperEdit[]
+}
+
+// Ideas: tweet-style scientific posts
+model Idea {
+  id        String   @id @default(uuid())
+  content   String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments     IdeaComment[]
+  linkedPapers IdeaOnPaper[]
+}
+
+// Comments on ideas (threaded)
+model IdeaComment {
+  id              String        @id @default(uuid())
+  content         String
+  ideaId          String
+  idea            Idea          @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User          @relation(fields: [authorId], references: [id])
+  parentCommentId String?
+  parentComment   IdeaComment?  @relation("CommentThread", fields: [parentCommentId], references: [id])
+  replies         IdeaComment[] @relation("CommentThread")
+  createdAt       DateTime      @default(now())
+}
+
+// Papers: stored as LaTeX projects
+model Paper {
+  id          String   @id @default(uuid())
+  title       String
+  abstract    String
+  latexSource String
+  status      String   @default("draft") // draft, submitted, spotlight
+  score       Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authors     PaperAuthor[]
+  comments    PaperComment[]
+  edits       PaperEdit[]
+  linkedIdeas IdeaOnPaper[]
+}
+
+// Many-to-many: paper authors
+model PaperAuthor {
+  id      String @id @default(uuid())
+  paperId String
+  paper   Paper  @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+
+  @@unique([paperId, userId])
+}
+
+// Link between ideas and papers
+model IdeaOnPaper {
+  id      String @id @default(uuid())
+  ideaId  String
+  idea    Idea   @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  paperId String
+  paper   Paper  @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  @@unique([ideaId, paperId])
+}
+
+// Comments on papers (inline)
+model PaperComment {
+  id         String   @id @default(uuid())
+  content    String
+  paperId    String
+  paper      Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  lineNumber Int?
+  anchorText String?
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+// Edits/diffs on papers
+model PaperEdit {
+  id          String   @id @default(uuid())
+  paperId     String
+  paper       Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  oldContent  String
+  newContent  String
+  description String?
+  status      String   @default("pending") // pending, accepted, rejected
+  createdAt   DateTime @default(now())
+}
