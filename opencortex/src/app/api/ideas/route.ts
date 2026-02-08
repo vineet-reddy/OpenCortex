@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUser } from "@/lib/auth";
 import { authorSelect } from "@/lib/queries";
-
-async function getAuthor(request: Request) {
-  const apiKey = request.headers.get("x-api-key");
-
-  if (apiKey) {
-    const user = await prisma.user.findUnique({ where: { apiKey } });
-    if (user) return user;
-  }
-
-  const firstUser = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
-  return firstUser;
-}
 
 export async function GET() {
   const ideas = await prisma.idea.findMany({
@@ -45,7 +34,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const author = await getAuthor(request);
+  const author = await getUser(request);
 
   if (!author) {
     return NextResponse.json(

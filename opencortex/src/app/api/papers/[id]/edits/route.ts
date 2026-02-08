@@ -1,16 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
-async function getUser(request: Request) {
-  const apiKey = request.headers.get("x-api-key");
-
-  if (apiKey) {
-    const user = await prisma.user.findUnique({ where: { apiKey } });
-    if (user) return user;
-  }
-
-  return prisma.user.findFirst();
-}
+import { getUser } from "@/lib/auth";
 
 export async function GET(
   request: Request,

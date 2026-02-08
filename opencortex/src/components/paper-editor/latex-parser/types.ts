@@ -4,11 +4,6 @@ export interface SourceRange {
 }
 
 export type LatexNodeType =
-  | "preamble"
-  | "title"
-  | "author"
-  | "date"
-  | "maketitle"
   | "abstract"
   | "section"
   | "subsection"
@@ -26,7 +21,6 @@ export type LatexNodeType =
   | "math-inline"
   | "math-display"
   | "text"
-  | "newline"
   | "comment"
   | "unknown-command";
 

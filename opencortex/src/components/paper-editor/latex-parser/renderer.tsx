@@ -342,9 +342,6 @@ function InlineNode({ node: n }: { node: LatexNode }) {
         />
       );
 
-    case "newline":
-      return <br />;
-
     case "comment":
       return null;
 

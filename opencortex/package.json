@@ -21,10 +21,7 @@
     "next": "16.1.6",
     "prisma": "^6.19.2",
     "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-katex": "^3.1.0",
-    "uuid": "^13.0.0",
-    "ws": "^8.19.0"
+    "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -32,9 +29,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/react-katex": "^3.0.4",
-    "@types/uuid": "^10.0.0",
-    "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",

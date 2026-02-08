@@ -8,69 +8,37 @@ export function useRealtimeSync(
   onUpdate: (data: PaperDetail) => void
 ) {
   const [connected, setConnected] = useState(false);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
+
+  const handleEvent = useCallback((event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data && data.id) {
+        onUpdateRef.current(data);
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
 
   const reconnect = useCallback(() => {
     const es = new EventSource(`/api/papers/${paperId}/events`);
 
-    es.onopen = () => {
-      setConnected(true);
-    };
-
-    es.addEventListener("paper:update", (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onUpdateRef.current(data);
-        setLastSync(new Date());
-      } catch {
-        // ignore parse errors
-      }
-    });
-
-    es.addEventListener("comment:new", (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onUpdateRef.current(data);
-        setLastSync(new Date());
-      } catch {
-        // ignore
-      }
-    });
-
-    es.addEventListener("edit:new", (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onUpdateRef.current(data);
-        setLastSync(new Date());
-      } catch {
-        // ignore
-      }
-    });
-
-    // Default message handler (initial data)
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data && data.id) {
-          onUpdateRef.current(data);
-          setLastSync(new Date());
-        }
-      } catch {
-        // ignore
-      }
-    };
+    es.onopen = () => setConnected(true);
+    es.onmessage = handleEvent;
+    es.addEventListener("paper:update", handleEvent);
+    es.addEventListener("comment:new", handleEvent);
+    es.addEventListener("edit:new", handleEvent);
 
     es.onerror = () => {
       setConnected(false);
       es.close();
-      // Auto-reconnect after 3 seconds
       setTimeout(() => reconnect(), 3000);
     };
 
     return es;
-  }, [paperId]);
+  }, [paperId, handleEvent]);
 
   useEffect(() => {
     const es = reconnect();
@@ -80,5 +48,5 @@ export function useRealtimeSync(
     };
   }, [reconnect]);
 
-  return { connected, lastSync };
+  return { connected };
 }
