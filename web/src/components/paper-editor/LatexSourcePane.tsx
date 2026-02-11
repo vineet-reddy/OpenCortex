@@ -1,12 +1,19 @@
 "use client";
 
-import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from "react";
+
+export interface SourceHighlightRange {
+  start: number;
+  end: number;
+}
 
 interface LatexSourcePaneProps {
   latex: string;
   onChange: (value: string) => void;
   readOnly?: boolean;
   onScroll?: () => void;
+  highlightRange?: SourceHighlightRange | null;
+  onSelectionChange?: (range: SourceHighlightRange | null) => void;
 }
 
 export interface LatexSourcePaneRef {
@@ -14,11 +21,23 @@ export interface LatexSourcePaneRef {
 }
 
 export const LatexSourcePane = forwardRef<LatexSourcePaneRef, LatexSourcePaneProps>(
-  function LatexSourcePane({ latex, onChange, readOnly, onScroll }, ref) {
+  function LatexSourcePane(
+    { latex, onChange, readOnly, onScroll, highlightRange, onSelectionChange },
+    ref
+  ) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
   const underlayRef = useRef<HTMLDivElement>(null);
-  const lines = latex.split("\n");
+  const lines = useMemo(() => latex.split("\n"), [latex]);
+  const lineStarts = useMemo(() => {
+    const starts: number[] = [];
+    let current = 0;
+    for (const line of lines) {
+      starts.push(current);
+      current += line.length + 1;
+    }
+    return starts;
+  }, [lines]);
 
   // Expose textarea ref to parent
   useImperativeHandle(ref, () => ({
@@ -39,6 +58,14 @@ export const LatexSourcePane = forwardRef<LatexSourcePaneRef, LatexSourcePanePro
     // Call external scroll handler
     onScroll?.();
   }, [onScroll]);
+
+  const handleSelection = useCallback(() => {
+    if (!onSelectionChange || !textareaRef.current) return;
+    const ta = textareaRef.current;
+    const start = Math.min(ta.selectionStart, ta.selectionEnd);
+    const end = Math.max(ta.selectionStart, ta.selectionEnd);
+    onSelectionChange(start === end ? null : { start, end });
+  }, [onSelectionChange]);
 
   useEffect(() => {
     const ta = textareaRef.current;
@@ -72,7 +99,7 @@ export const LatexSourcePane = forwardRef<LatexSourcePaneRef, LatexSourcePanePro
         <div style={{ fontFamily: "var(--font-mono), monospace", fontSize: "13px", lineHeight: "1.6" }}>
           {lines.map((line, i) => (
             <div key={i} className="whitespace-pre-wrap">
-              {highlightLine(line)}
+              {highlightLine(line, lineStarts[i] ?? 0, highlightRange ?? null)}
             </div>
           ))}
         </div>
@@ -83,6 +110,9 @@ export const LatexSourcePane = forwardRef<LatexSourcePaneRef, LatexSourcePanePro
         ref={textareaRef}
         value={latex}
         onChange={(e) => onChange(e.target.value)}
+        onSelect={handleSelection}
+        onKeyUp={handleSelection}
+        onMouseUp={handleSelection}
         readOnly={readOnly}
         className="flex-1 bg-transparent text-transparent caret-[var(--foreground)] resize-none outline-none pt-4 pb-4 pl-3 pr-4 relative z-10 overflow-y-auto"
         style={{
@@ -98,33 +128,64 @@ export const LatexSourcePane = forwardRef<LatexSourcePaneRef, LatexSourcePanePro
   );
 });
 
-function highlightLine(line: string): React.ReactNode {
-  if (!line) return " ";
+function lineClass(line: string): string {
+  if (!line) return "text-[var(--foreground)]";
 
-  // Comments
   if (line.trimStart().startsWith("%")) {
-    return <span className="text-[var(--muted-soft)] italic">{line}</span>;
+    return "text-[var(--muted-soft)] italic";
   }
 
-  // Section commands
   if (/^\\(section|subsection|subsubsection|title)\b/.test(line)) {
-    return <span className="text-[var(--accent)] font-medium">{line}</span>;
+    return "text-[var(--accent)] font-medium";
   }
 
-  // Environment begin/end
   if (/^\\(begin|end)\{/.test(line)) {
-    return <span className="text-[#7a5a8c]">{line}</span>;
+    return "text-[#7a5a8c]";
   }
 
-  // Items and text formatting
   if (/^\\(item|textbf|textit)\b/.test(line)) {
-    return <span className="text-[var(--success)]">{line}</span>;
+    return "text-[var(--success)]";
   }
 
-  // Other commands
   if (line.trimStart().startsWith("\\")) {
-    return <span className="text-[var(--info)]">{line}</span>;
+    return "text-[var(--info)]";
   }
 
-  return <span className="text-[var(--foreground)]">{line}</span>;
+  return "text-[var(--foreground)]";
+}
+
+function highlightLine(
+  line: string,
+  lineStart: number,
+  highlightRange: SourceHighlightRange | null
+): React.ReactNode {
+  if (!line) return " ";
+  const cls = lineClass(line);
+
+  if (!highlightRange || highlightRange.end <= lineStart || highlightRange.start >= lineStart + line.length) {
+    return <span className={cls}>{line}</span>;
+  }
+
+  const overlapStart = Math.max(0, highlightRange.start - lineStart);
+  const overlapEnd = Math.min(line.length, highlightRange.end - lineStart);
+
+  if (overlapStart >= overlapEnd) {
+    return <span className={cls}>{line}</span>;
+  }
+
+  const before = line.slice(0, overlapStart);
+  const selected = line.slice(overlapStart, overlapEnd);
+  const after = line.slice(overlapEnd);
+
+  return (
+    <>
+      {before && <span className={cls}>{before}</span>}
+      {selected && (
+        <span className={`${cls} bg-[var(--accent-light)] ring-1 ring-[var(--accent-muted)]/40 rounded-[2px]`}>
+          {selected}
+        </span>
+      )}
+      {after && <span className={cls}>{after}</span>}
+    </>
+  );
 }

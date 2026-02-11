@@ -9,6 +9,9 @@ interface Author {
 export interface PaperComment {
   id: string;
   content: string;
+  paragraphId: string | null;
+  sourceStart: number | null;
+  sourceEnd: number | null;
   lineNumber: number | null;
   anchorText: string | null;
   resolved: boolean;

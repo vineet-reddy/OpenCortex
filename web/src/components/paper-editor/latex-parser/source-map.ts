@@ -74,6 +74,10 @@ function getNodePlainText(n: LatexNode): string {
   return getPlainText(n).replace(/\s+/g, " ").trim();
 }
 
+function normalizePlainText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
 function hasInlineCommands(latex: string): boolean {
   return /\\(textbf|textit|emph|textsuperscript|textsubscript|underline)\{/.test(latex);
 }
@@ -262,4 +266,74 @@ export function findNodeByAnchorText(
 
   search(nodes);
   return bestMatch;
+}
+
+/**
+ * Find the deepest node whose source range contains `offset`.
+ */
+export function findNodeBySourceOffset(
+  nodes: LatexNode[],
+  offset: number
+): LatexNode | null {
+  function search(list: LatexNode[]): LatexNode | null {
+    for (const n of list) {
+      if (offset < n.sourceRange.start || offset > n.sourceRange.end) continue;
+      const child = search(n.children);
+      return child ?? n;
+    }
+    return null;
+  }
+  return search(nodes);
+}
+
+/**
+ * Map a plain-text range (within a node's rendered plain text) to LaTeX source offsets.
+ * Returns null if the range is invalid.
+ */
+export function mapPlainRangeToSource(
+  fullLatex: string,
+  targetNode: LatexNode,
+  plainStart: number,
+  plainEnd: number
+): { start: number; end: number } | null {
+  if (plainStart < 0 || plainEnd <= plainStart) return null;
+
+  const nodeLatex = fullLatex.slice(
+    targetNode.sourceRange.start,
+    targetNode.sourceRange.end
+  );
+  const plain = normalizePlainText(getPlainText(targetNode));
+
+  const cappedStart = Math.max(0, Math.min(plainStart, plain.length));
+  const cappedEnd = Math.max(cappedStart, Math.min(plainEnd, plain.length));
+  if (cappedEnd <= cappedStart) return null;
+
+  const relativeStart = plainOffsetToLatex(nodeLatex, cappedStart);
+  const relativeEnd = plainOffsetToLatex(nodeLatex, cappedEnd);
+  if (relativeEnd <= relativeStart) return null;
+
+  return {
+    start: targetNode.sourceRange.start + relativeStart,
+    end: targetNode.sourceRange.start + relativeEnd,
+  };
+}
+
+/**
+ * Best-effort match of selected plain text inside node plain text.
+ * Returns the first matching range in normalized text.
+ */
+export function findPlainTextRangeInNode(
+  node: LatexNode,
+  selectedText: string
+): { start: number; end: number } | null {
+  const needle = normalizePlainText(selectedText);
+  if (!needle) return null;
+
+  const haystack = normalizePlainText(getPlainText(node));
+  if (!haystack) return null;
+
+  const idx = haystack.indexOf(needle);
+  if (idx < 0) return null;
+
+  return { start: idx, end: idx + needle.length };
 }

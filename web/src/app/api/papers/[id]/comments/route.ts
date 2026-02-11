@@ -27,7 +27,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { content, lineNumber, anchorText } = body;
+    const { content, paragraphId, sourceStart, sourceEnd, lineNumber, anchorText } = body;
 
     if (!content) {
       return NextResponse.json(
@@ -39,6 +39,9 @@ export async function POST(
     const comment = await prisma.paperComment.create({
       data: {
         content,
+        paragraphId: paragraphId ?? null,
+        sourceStart: sourceStart ?? null,
+        sourceEnd: sourceEnd ?? null,
         lineNumber: lineNumber ?? null,
         anchorText: anchorText ?? null,
         paperId: id,

@@ -93,16 +93,19 @@ model IdeaOnPaper {
 
 // Comments on papers (inline)
 model PaperComment {
-  id         String   @id @default(uuid())
-  content    String
-  paperId    String
-  paper      Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id])
-  lineNumber Int?
-  anchorText String?
-  resolved   Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id          String   @id @default(uuid())
+  content     String
+  paperId     String
+  paper       Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  paragraphId String?
+  sourceStart Int?
+  sourceEnd   Int?
+  lineNumber  Int?
+  anchorText  String?
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
 }
 
 // Edits/diffs on papers

@@ -6,8 +6,12 @@ import TimeAgo from "../TimeAgo";
 import { usePaperData } from "./hooks/usePaperData";
 import { useBidirectionalEdit } from "./hooks/useBidirectionalEdit";
 import { useRealtimeSync } from "./hooks/useRealtimeSync";
-import { LatexSourcePane, LatexSourcePaneRef } from "./LatexSourcePane";
-import { RenderedDocPane } from "./RenderedDocPane";
+import {
+  LatexSourcePane,
+  LatexSourcePaneRef,
+  SourceHighlightRange,
+} from "./LatexSourcePane";
+import { CommentAnchorPayload, RenderedDocPane } from "./RenderedDocPane";
 import { EditsPanel } from "./EditsPanel";
 import { CommentThread } from "./CommentThread";
 import { LatexNode } from "./latex-parser/types";
@@ -32,6 +36,7 @@ export default function SplitPaperEditor({ paperId, onBack }: SplitPaperEditorPr
   const [saving, setSaving] = useState(false);
   const [activePanel, setActivePanel] = useState<"split" | "comments" | "edits">("split");
   const [scrollSyncEnabled, setScrollSyncEnabled] = useState(true);
+  const [highlightRange, setHighlightRange] = useState<SourceHighlightRange | null>(null);
 
   // Refs for scroll sync
   const sourceRef = useRef<LatexSourcePaneRef>(null);
@@ -173,6 +178,20 @@ export default function SplitPaperEditor({ paperId, onBack }: SplitPaperEditorPr
     };
   }, []);
 
+  // Keep linked highlights valid across edits
+  useEffect(() => {
+    if (!highlightRange) return;
+    const start = Math.min(highlightRange.start, latex.length);
+    const end = Math.min(highlightRange.end, latex.length);
+    if (start >= end) {
+      setHighlightRange(null);
+      return;
+    }
+    if (start !== highlightRange.start || end !== highlightRange.end) {
+      setHighlightRange({ start, end });
+    }
+  }, [highlightRange, latex.length]);
+
   // Sync initial paper data to editor
   useEffect(() => {
     if (paper) {
@@ -207,14 +226,43 @@ export default function SplitPaperEditor({ paperId, onBack }: SplitPaperEditorPr
     refetch();
   };
 
-  const addComment = async (content: string, paragraphId: string, anchorText: string) => {
+  const addComment = async (content: string, anchor: CommentAnchorPayload) => {
     await fetch(`/api/papers/${paperId}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, anchorText }),
+      body: JSON.stringify({
+        content,
+        paragraphId: anchor.paragraphId,
+        sourceStart: anchor.sourceStart,
+        sourceEnd: anchor.sourceEnd,
+        lineNumber: anchor.lineNumber,
+        anchorText: anchor.anchorText,
+      }),
     });
     refetch();
   };
+
+  const handleSourceSelectionChange = useCallback(
+    (range: SourceHighlightRange | null) => {
+      setHighlightRange(range);
+    },
+    []
+  );
+
+  const handleRenderedSelectionChange = useCallback(
+    (range: SourceHighlightRange | null) => {
+      setHighlightRange(range);
+      const textarea = sourceRef.current?.textarea;
+      if (!textarea || !range) return;
+
+      try {
+        textarea.setSelectionRange(range.start, range.end);
+      } catch {
+        // ignore invalid ranges
+      }
+    },
+    []
+  );
 
   if (loading || !paper) {
     return (
@@ -377,6 +425,8 @@ export default function SplitPaperEditor({ paperId, onBack }: SplitPaperEditorPr
                   onChange={setLatex}
                   readOnly={!editMode}
                   onScroll={handleSourceScroll}
+                  highlightRange={highlightRange}
+                  onSelectionChange={handleSourceSelectionChange}
                 />
               </div>
             </div>
@@ -395,11 +445,14 @@ export default function SplitPaperEditor({ paperId, onBack }: SplitPaperEditorPr
                 <RenderedDocPane
                   ref={renderedRef}
                   parseResult={parseResult}
+                  latexSource={latex}
                   editable={editMode}
                   onParagraphEdit={updateFromRendered}
                   comments={paper.comments}
                   onAddComment={addComment}
                   onScroll={handleRenderedScroll}
+                  highlightRange={highlightRange}
+                  onSelectionChange={handleRenderedSelectionChange}
                 />
               </div>
             </div>

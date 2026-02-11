@@ -22,6 +22,21 @@ function renderMath(tex: string, displayMode: boolean): string {
   }
 }
 
+function overlapsRange(
+  start: number,
+  end: number,
+  range: { start: number; end: number } | null
+): boolean {
+  if (!range) return false;
+  return Math.max(start, range.start) < Math.min(end, range.end);
+}
+
+function blockHighlightClass(isHighlighted: boolean): string {
+  return isHighlighted
+    ? "bg-[var(--accent-light)]/70 ring-1 ring-[var(--accent-muted)]/45 rounded-md"
+    : "";
+}
+
 interface RenderedLatexProps {
   parseResult: ParseResult;
   editable?: boolean;
@@ -29,6 +44,7 @@ interface RenderedLatexProps {
   onParagraphClick?: (paragraphId: string, element: HTMLElement) => void;
   commentCounts?: Record<string, number>;
   onAddComment?: (paragraphId: string) => void;
+  highlightRange?: { start: number; end: number } | null;
 }
 
 export function RenderedLatex({
@@ -38,6 +54,7 @@ export function RenderedLatex({
   onParagraphClick,
   commentCounts = {},
   onAddComment,
+  highlightRange = null,
 }: RenderedLatexProps) {
   const { nodes, metadata } = parseResult;
 
@@ -71,6 +88,7 @@ export function RenderedLatex({
           onParagraphClick={onParagraphClick}
           commentCount={commentCounts[n.paragraphId] || 0}
           onAddComment={onAddComment}
+          highlightRange={highlightRange}
         />
       ))}
     </div>
@@ -84,6 +102,7 @@ interface BlockNodeProps {
   onParagraphClick?: (paragraphId: string, element: HTMLElement) => void;
   commentCount?: number;
   onAddComment?: (paragraphId: string) => void;
+  highlightRange?: { start: number; end: number } | null;
 }
 
 function BlockNode({
@@ -93,8 +112,10 @@ function BlockNode({
   onParagraphClick,
   commentCount = 0,
   onAddComment,
+  highlightRange = null,
 }: BlockNodeProps) {
   const ref = useRef<HTMLElement | null>(null);
+  const isHighlighted = overlapsRange(n.sourceRange.start, n.sourceRange.end, highlightRange);
 
   const handleBlur = useCallback(() => {
     if (!editable || !onParagraphEdit || !ref.current) return;
@@ -140,7 +161,9 @@ function BlockNode({
       return (
         <div
           data-paragraph-id={n.paragraphId}
-          className="relative group/block border-l-3 border-[var(--accent-muted)] pl-4 my-5 py-1 italic text-[15px] leading-[1.7] text-[var(--foreground-soft)]"
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={`relative group/block border-l-3 border-[var(--accent-muted)] pl-4 my-5 py-1 italic text-[15px] leading-[1.7] text-[var(--foreground-soft)] ${blockHighlightClass(isHighlighted)}`}
         >
           <span className="text-[12px] uppercase tracking-wider text-[var(--muted)] not-italic block mb-2" style={{ fontFamily: "var(--font-mono), monospace" }}>
             Abstract
@@ -153,7 +176,10 @@ function BlockNode({
             onClick={handleClick}
             className={editable ? "outline-none focus:ring-2 focus:ring-[var(--accent-muted)] focus:ring-offset-2 rounded px-1 -mx-1" : ""}
           >
-            <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+            <InlineContent
+              nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+              highlightRange={highlightRange}
+            />
           </div>
           {commentBadge || commentButton}
         </div>
@@ -161,7 +187,12 @@ function BlockNode({
 
     case "section":
       return (
-        <div data-paragraph-id={n.paragraphId} className="relative group/block">
+        <div
+          data-paragraph-id={n.paragraphId}
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={`relative group/block ${blockHighlightClass(isHighlighted)}`}
+        >
           <h2
             ref={setRef}
             className="text-[19px] mt-7 mb-3 pb-1 border-b border-[var(--border)]/50"
@@ -171,7 +202,10 @@ function BlockNode({
             onBlur={handleBlur}
             onClick={handleClick}
           >
-            <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+            <InlineContent
+              nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+              highlightRange={highlightRange}
+            />
           </h2>
           {commentBadge || commentButton}
         </div>
@@ -179,7 +213,12 @@ function BlockNode({
 
     case "subsection":
       return (
-        <div data-paragraph-id={n.paragraphId} className="relative group/block">
+        <div
+          data-paragraph-id={n.paragraphId}
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={`relative group/block ${blockHighlightClass(isHighlighted)}`}
+        >
           <h3
             ref={setRef}
             className="text-[17px] mt-5 mb-2"
@@ -189,7 +228,10 @@ function BlockNode({
             onBlur={handleBlur}
             onClick={handleClick}
           >
-            <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+            <InlineContent
+              nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+              highlightRange={highlightRange}
+            />
           </h3>
           {commentBadge || commentButton}
         </div>
@@ -197,7 +239,12 @@ function BlockNode({
 
     case "subsubsection":
       return (
-        <div data-paragraph-id={n.paragraphId} className="relative group/block">
+        <div
+          data-paragraph-id={n.paragraphId}
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={`relative group/block ${blockHighlightClass(isHighlighted)}`}
+        >
           <h4
             ref={setRef}
             className="text-[15px] font-semibold mt-4 mb-2"
@@ -207,7 +254,10 @@ function BlockNode({
             onBlur={handleBlur}
             onClick={handleClick}
           >
-            <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+            <InlineContent
+              nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+              highlightRange={highlightRange}
+            />
           </h4>
           {commentBadge || commentButton}
         </div>
@@ -215,18 +265,42 @@ function BlockNode({
 
     case "enumerate":
       return (
-        <ol className="list-decimal pl-6 my-3 space-y-1.5 text-[15px] leading-[1.7]" data-paragraph-id={n.paragraphId}>
+        <ol
+          className={`list-decimal pl-6 my-3 space-y-1.5 text-[15px] leading-[1.7] ${blockHighlightClass(isHighlighted)}`}
+          data-paragraph-id={n.paragraphId}
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+        >
           {n.children.map((item) => (
-            <BlockNode key={item.paragraphId} node={item} editable={editable} onParagraphEdit={onParagraphEdit} onParagraphClick={onParagraphClick} />
+            <BlockNode
+              key={item.paragraphId}
+              node={item}
+              editable={editable}
+              onParagraphEdit={onParagraphEdit}
+              onParagraphClick={onParagraphClick}
+              highlightRange={highlightRange}
+            />
           ))}
         </ol>
       );
 
     case "itemize":
       return (
-        <ul className="list-disc pl-6 my-3 space-y-1.5 text-[15px] leading-[1.7]" data-paragraph-id={n.paragraphId}>
+        <ul
+          className={`list-disc pl-6 my-3 space-y-1.5 text-[15px] leading-[1.7] ${blockHighlightClass(isHighlighted)}`}
+          data-paragraph-id={n.paragraphId}
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+        >
           {n.children.map((item) => (
-            <BlockNode key={item.paragraphId} node={item} editable={editable} onParagraphEdit={onParagraphEdit} onParagraphClick={onParagraphClick} />
+            <BlockNode
+              key={item.paragraphId}
+              node={item}
+              editable={editable}
+              onParagraphEdit={onParagraphEdit}
+              onParagraphClick={onParagraphClick}
+              highlightRange={highlightRange}
+            />
           ))}
         </ul>
       );
@@ -235,12 +309,18 @@ function BlockNode({
       return (
         <li
           ref={setRef}
+          data-paragraph-id={n.paragraphId}
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
           contentEditable={editable}
           suppressContentEditableWarning
           onBlur={handleBlur}
-          className={editable ? "outline-none focus:ring-2 focus:ring-[var(--accent-muted)] focus:ring-offset-2 rounded" : ""}
+          className={`${editable ? "outline-none focus:ring-2 focus:ring-[var(--accent-muted)] focus:ring-offset-2 rounded" : ""} ${blockHighlightClass(isHighlighted)}`}
         >
-          <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+          <InlineContent
+            nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+            highlightRange={highlightRange}
+          />
         </li>
       );
 
@@ -248,7 +328,9 @@ function BlockNode({
       return (
         <div
           data-paragraph-id={n.paragraphId}
-          className="my-4 px-4 py-3 text-center overflow-x-auto"
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={`my-4 px-4 py-3 text-center overflow-x-auto ${blockHighlightClass(isHighlighted)}`}
           dangerouslySetInnerHTML={{ __html: renderMath(n.content, true) }}
         />
       );
@@ -256,7 +338,12 @@ function BlockNode({
     case "paragraph":
     default:
       return (
-        <div data-paragraph-id={n.paragraphId} className="relative group/block">
+        <div
+          data-paragraph-id={n.paragraphId}
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={`relative group/block ${blockHighlightClass(isHighlighted)}`}
+        >
           <p
             ref={setRef}
             className={`text-[15px] leading-[1.75] mb-3 text-[var(--foreground-soft)] ${
@@ -267,7 +354,10 @@ function BlockNode({
             onBlur={handleBlur}
             onClick={handleClick}
           >
-            <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+            <InlineContent
+              nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+              highlightRange={highlightRange}
+            />
           </p>
           {commentBadge || commentButton}
         </div>
@@ -275,61 +365,113 @@ function BlockNode({
   }
 }
 
-function InlineContent({ nodes }: { nodes: LatexNode[] }) {
+function InlineContent({
+  nodes,
+  highlightRange,
+}: {
+  nodes: LatexNode[];
+  highlightRange: { start: number; end: number } | null;
+}) {
   return (
     <>
       {nodes.map((n, i) => (
-        <InlineNode key={i} node={n} />
+        <InlineNode key={i} node={n} highlightRange={highlightRange} />
       ))}
     </>
   );
 }
 
-function InlineNode({ node: n }: { node: LatexNode }) {
-  switch (n.type) {
-    case "text":
-      return <>{n.content}</>;
+function InlineNode({
+  node: n,
+  highlightRange,
+}: {
+  node: LatexNode;
+  highlightRange: { start: number; end: number } | null;
+}) {
+  const isHighlighted = overlapsRange(n.sourceRange.start, n.sourceRange.end, highlightRange);
 
+  if (n.type === "text") {
+    return renderTextWithHighlight(n, highlightRange);
+  }
+
+  switch (n.type) {
     case "textbf":
       return (
-        <strong>
-          <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+        <strong
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={isHighlighted ? "bg-[var(--accent-light)]/70 rounded-sm" : ""}
+        >
+          <InlineContent
+            nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+            highlightRange={highlightRange}
+          />
         </strong>
       );
 
     case "textit":
     case "emph":
       return (
-        <em>
-          <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+        <em
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={isHighlighted ? "bg-[var(--accent-light)]/70 rounded-sm" : ""}
+        >
+          <InlineContent
+            nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+            highlightRange={highlightRange}
+          />
         </em>
       );
 
     case "textsuperscript":
       return (
-        <sup>
-          <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+        <sup
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={isHighlighted ? "bg-[var(--accent-light)]/70 rounded-sm" : ""}
+        >
+          <InlineContent
+            nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+            highlightRange={highlightRange}
+          />
         </sup>
       );
 
     case "textsubscript":
       return (
-        <sub>
-          <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+        <sub
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={isHighlighted ? "bg-[var(--accent-light)]/70 rounded-sm" : ""}
+        >
+          <InlineContent
+            nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+            highlightRange={highlightRange}
+          />
         </sub>
       );
 
     case "underline":
       return (
-        <u>
-          <InlineContent nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]} />
+        <u
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={isHighlighted ? "bg-[var(--accent-light)]/70 rounded-sm" : ""}
+        >
+          <InlineContent
+            nodes={n.children.length > 0 ? n.children : [{ type: "text", content: n.content, children: [], sourceRange: n.sourceRange, paragraphId: n.paragraphId }]}
+            highlightRange={highlightRange}
+          />
         </u>
       );
 
     case "math-inline":
       return (
         <span
-          className="inline-block align-middle"
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={`inline-block align-middle ${isHighlighted ? "bg-[var(--accent-light)]/70 rounded-sm" : ""}`}
           dangerouslySetInnerHTML={{ __html: renderMath(n.content, false) }}
         />
       );
@@ -337,7 +479,9 @@ function InlineNode({ node: n }: { node: LatexNode }) {
     case "math-display":
       return (
         <div
-          className="my-2 text-center"
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={`my-2 text-center ${isHighlighted ? "bg-[var(--accent-light)]/70 rounded-sm" : ""}`}
           dangerouslySetInnerHTML={{ __html: renderMath(n.content, true) }}
         />
       );
@@ -348,7 +492,9 @@ function InlineNode({ node: n }: { node: LatexNode }) {
     case "unknown-command":
       return (
         <span
-          className="text-[var(--muted)] text-[13px] px-0.5 rounded bg-[var(--surface-warm)]"
+          data-source-start={n.sourceRange.start}
+          data-source-end={n.sourceRange.end}
+          className={`text-[var(--muted)] text-[13px] px-0.5 rounded bg-[var(--surface-warm)] ${isHighlighted ? "ring-1 ring-[var(--accent-muted)]/40" : ""}`}
           style={{ fontFamily: "var(--font-mono), monospace" }}
           title={n.content}
         >
@@ -359,6 +505,49 @@ function InlineNode({ node: n }: { node: LatexNode }) {
     default:
       return <>{n.content}</>;
   }
+}
+
+function renderTextWithHighlight(
+  node: LatexNode,
+  highlightRange: { start: number; end: number } | null
+) {
+  const text = node.content;
+  const sourceStart = node.sourceRange.start;
+  const sourceEnd = node.sourceRange.end;
+
+  if (!highlightRange || !overlapsRange(sourceStart, sourceEnd, highlightRange)) {
+    return (
+      <span data-source-start={sourceStart} data-source-end={sourceEnd}>
+        {text}
+      </span>
+    );
+  }
+
+  const sourceLen = Math.max(1, sourceEnd - sourceStart);
+  const textLen = text.length;
+  const overlapStart = Math.max(sourceStart, highlightRange.start);
+  const overlapEnd = Math.min(sourceEnd, highlightRange.end);
+
+  const startRatio = (overlapStart - sourceStart) / sourceLen;
+  const endRatio = (overlapEnd - sourceStart) / sourceLen;
+  const textStart = Math.max(0, Math.min(textLen, Math.floor(startRatio * textLen)));
+  const textEnd = Math.max(textStart, Math.min(textLen, Math.ceil(endRatio * textLen)));
+
+  const before = text.slice(0, textStart);
+  const selected = text.slice(textStart, textEnd);
+  const after = text.slice(textEnd);
+
+  return (
+    <span data-source-start={sourceStart} data-source-end={sourceEnd}>
+      {before}
+      {selected && (
+        <span className="bg-[var(--accent-light)] ring-1 ring-[var(--accent-muted)]/45 rounded-[2px]">
+          {selected}
+        </span>
+      )}
+      {after}
+    </span>
+  );
 }
 
 /** Render inline LaTeX formatting within a single text string (for metadata) */
